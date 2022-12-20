@@ -7,6 +7,6 @@ project(
         LANGUAGES C
     )
 
-add_executable(pyrotobox src/main.c src/types.h src/io_utils.h src/io_utils.c)
+add_executable(pyrotobox src/main.c src/types.h src/io_utils.h src/io_utils.c src/nes.h src/nes.c src/utils.h src/utils.c)
 
 target_compile_features(pyrotobox PRIVATE c_std_99)
