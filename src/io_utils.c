@@ -1,8 +1,14 @@
 #include <stdio.h>
 
-//TODO: Add rom file check support for windows as well
-#include <unistd.h>
 #include "io_utils.h"
+// If the platform is Windows, then compile the access function accordingly
+#ifdef WIN32
+    #include <io.h>
+    #define F_OK 0
+    #define access _access
+#else
+    #include <unistd.h>
+#endif
 
 #define MIN_ROM_BIN_SIZE 0x10
 #define MAX_ROM_BIN_SIZE 0x500000
