@@ -1,6 +1,6 @@
 #include "utils.h"
 
-const u16 read_little_endian_u16(u8* arr) {
+u16 read_little_endian_u16(u8* arr) {
     const u16 msb = arr[1] << 8;
     const u16 lsb = arr[1];
     const u16 result = msb | lsb;
@@ -8,7 +8,7 @@ const u16 read_little_endian_u16(u8* arr) {
     return result;
 }
 
-const u32 read_little_endian_u32(u8* arr) {
+u32 read_little_endian_u32(u8* arr) {
     const u32 msb = arr[3] << 24;
     const u32 msb1 = arr[2] << 16;
     const u32 msb2 = arr[1] << 8;

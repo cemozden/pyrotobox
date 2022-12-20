@@ -35,7 +35,6 @@ typedef struct build_nes_header_result_t {
     NesHeader* nes_header;
 } build_nes_header_result_t;
 
-static build_nes_header_result_t build_nes_header_from_rom_bin(const u8* rom_bin);
 build_nes_result_t build_nes_from_rom_bin(u8** p_rom_bin);
 void free_nes(Nes* nes);
 

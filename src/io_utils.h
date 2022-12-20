@@ -11,6 +11,6 @@ typedef struct rom_read_result {
     size_t size;
 } rom_read_result;
 
-const rom_read_result read_rom_bin(const char* rom_bin_path);
+rom_read_result read_rom_bin(const char* rom_bin_path);
 
 #endif

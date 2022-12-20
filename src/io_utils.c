@@ -7,7 +7,7 @@
 #define MIN_ROM_BIN_SIZE 0x10
 #define MAX_ROM_BIN_SIZE 0x500000
 
-const rom_read_result read_rom_bin(const char* rom_bin_path) {
+rom_read_result read_rom_bin(const char* rom_bin_path) {
 
     rom_read_result result = (rom_read_result) {
         .valid = false,
