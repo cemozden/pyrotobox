@@ -11,9 +11,9 @@ static build_nes_header_result_t build_nes_header_from_rom_bin(const u8* rom_bin
         .nes_header = NULL,
         .valid = false
     };
-    const u8 sign_size = 4;
-    u8 sign_arr[sign_size];
-    memcpy(sign_arr, rom_bin, sign_size);
+    const size_t sign_size_in_bytes = 0x04;
+    u8 sign_arr[sign_size_in_bytes];
+    memcpy(sign_arr, rom_bin, sign_size_in_bytes);
 
     const u32 sign = read_little_endian_u32(sign_arr);
 
