@@ -69,6 +69,11 @@ build_nes_result_t build_nes_from_rom_bin(u8** p_rom_bin) {
     mem_map_result mem_map_result = generate_mem_map(nes->nes_header, rom_bin);
 
     if (!mem_map_result.valid) {
+        // Free NES if we can't create mem map
+        free(nes);
+        free(rom_bin);
+        *p_rom_bin = NULL;
+
         return result;
     }
 

@@ -11,7 +11,7 @@ Cpu* build_cpu_from_mem(u8* cpu_mem) {
    cpu->r_sp = 0xFD;
    cpu->mem  = cpu_mem;
    cpu->r_pc = reset_vector(cpu_mem);
-   cpu->r_sr = 0x34;
+   cpu->r_sr = 0x04;
 
    return cpu;
 }
