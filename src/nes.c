@@ -1,9 +1,12 @@
-#include "nes.h"
-#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <string.h>
+
+#include "nes.h"
+#include "mapper.h"
+#include "utils.h"
+
 #define INES_HEADER_SIGNATURE 0x1A53454E
 
 static build_nes_header_result_t build_nes_header_from_rom_bin(const u8* rom_bin) {
@@ -63,16 +66,29 @@ build_nes_result_t build_nes_from_rom_bin(u8** p_rom_bin) {
     Nes* nes = malloc(sizeof(Nes));
 
     nes->nes_header = nes_header_result.nes_header;
-    
+    mem_map_result mem_map_result = generate_mem_map(nes->nes_header, rom_bin);
+
+    if (!mem_map_result.valid) {
+        return result;
+    }
+
+    u8* cpu_mem = mem_map_result.mem_map.cpu_mem_map;
+    Cpu* cpu = build_cpu_from_mem(cpu_mem);
+    nes->cpu = cpu;
+
     result.nes = nes;
     result.valid = true;
 
     free(rom_bin);
     *p_rom_bin = NULL;
+
+
     return result;
 }
 
 void free_nes(Nes* nes) {
     free(nes->nes_header);
+    free(nes->cpu->mem);
+    free(nes->cpu);
     free(nes);
 }

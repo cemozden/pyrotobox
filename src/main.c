@@ -37,7 +37,6 @@ int main(int argc, char** argv) {
     }
     
     Nes* nes = build_nes_result.nes;
-
     printf("\n> pyrotobox v%d.%d.%d, A NES Emulator\n\n", PYROTOBOX_MAJOR_VERSION, PYROTOBOX_MINOR_VERSION, PYROTOBOX_PATCH_VERSION);
     printf("ROM Path: %s\n", rom_bin_path);
 
@@ -49,6 +48,8 @@ int main(int argc, char** argv) {
             nes->nes_header->chr_rom_count,
             nes->nes_header->mirroring == HORIZONTAL ? mirr_horizontal_str : mirr_vertical_str
           );
+
+    //TODO: Implement infinite loop for CPU instructions
 
     free_nes(nes);
 

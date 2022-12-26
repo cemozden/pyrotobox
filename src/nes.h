@@ -2,11 +2,13 @@
 #define NES_H
 
 #include "types.h"
+#include "cpu.h"
 #include <stdbool.h>
 
 typedef enum Mapper {
     NROM = 0
 } Mapper;
+
 
 typedef enum Mirroring {
     HORIZONTAL,
@@ -23,6 +25,7 @@ typedef struct NesHeader {
 
 typedef struct Nes {
     NesHeader* nes_header;
+    Cpu* cpu;
 } Nes;
 
 typedef struct build_nes_result_t {
