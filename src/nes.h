@@ -40,5 +40,6 @@ typedef struct build_nes_header_result_t {
 
 build_nes_result_t build_nes_from_rom_bin(u8** p_rom_bin);
 void free_nes(Nes* nes);
+void run_nes(Nes* nes);
 
 #endif

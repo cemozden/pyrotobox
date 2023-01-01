@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
             nes->nes_header->mirroring == HORIZONTAL ? mirr_horizontal_str : mirr_vertical_str
           );
 
-    //TODO: Implement infinite loop for CPU instructions
+    run_nes(nes);
 
     free_nes(nes);
 

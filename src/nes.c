@@ -3,6 +3,7 @@
 #include <memory.h>
 #include <string.h>
 
+#include "cpu.h"
 #include "nes.h"
 #include "mapper.h"
 #include "utils.h"
@@ -89,6 +90,18 @@ build_nes_result_t build_nes_from_rom_bin(u8** p_rom_bin) {
 
 
     return result;
+}
+
+void run_nes(Nes* nes) {
+    Cpu* cpu = nes->cpu;
+    cpu->cpu_state = CPU_RUNNING;
+
+    //FIXME: Implement the infinite loop speed according to 2A03 CPU clock cycle.
+    while (cpu->cpu_state == CPU_RUNNING) {
+       const size_t cycles = exec_instruction(cpu);
+       cpu->cycles += cycles;
+       cpu->instructions_performed++;
+    }
 }
 
 void free_nes(Nes* nes) {
