@@ -1,5 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
+#define STACK_SIZE 0xFD
+
 #include "types.h"
 #include <stdlib.h>
 
@@ -30,6 +32,17 @@ typedef struct operand_t {
     u8 extra_cycles;
     u16 addr;
 } operand_t;
+
+typedef enum StatusFlag {
+    CARRY_FLAG = (1 << 0),
+    ZERO_FLAG = (1 << 1),
+    INTERRUPT_DISABLED_FLAG = (1 << 2),
+    DECIMAL_FLAG = (1 << 3),
+    BREAK_COMMAND = (1 << 4),
+    UNUSED = (1 << 5),
+    OVERFLOW_FLAG = (1 << 6),
+    NEGATIVE_FLAG = (1 << 7),
+} StatusFlag;
 
 typedef struct Cpu {
     u8 r_x;

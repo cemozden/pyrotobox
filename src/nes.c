@@ -19,7 +19,7 @@ static build_nes_header_result_t build_nes_header_from_rom_bin(const u8* rom_bin
     u8 sign_arr[sign_size_in_bytes];
     memcpy(sign_arr, rom_bin, sign_size_in_bytes);
 
-    const u32 sign = read_little_endian_u32(sign_arr);
+    const u32 sign = read_little_endian_u32(rom_bin[0], rom_bin[1], rom_bin[2], rom_bin[3]);
 
     if (sign != INES_HEADER_SIGNATURE) {
         fprintf(stderr, "Invalid iNES Header signature! Given Signature: 0x%x\n", sign);

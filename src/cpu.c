@@ -2,17 +2,30 @@
 #include <stdio.h>
 #include "cpu.h"
 #include "utils.h"
+#include <stdbool.h>
 
-static u16 reset_vector(u8* cpu_mem);
+inline static u16 reset_vector(u8* cpu_mem);
+inline static u16 irq_interrupt_vector(u8* cpu_mem);
 static u8 read_u8(Cpu* cpu, u16 addr);
 
 static void write_u8(Cpu* cpu, u16 addr, u8 val);
 
 static operand_t get_operand(Cpu* cpu, AddrMode addr_mode);
 
+// CPU flag ops
+static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set);
+static inline bool get_cpu_flag(Cpu* cpu, StatusFlag flag);
+
+// Stack ops
+static bool push_stack(Cpu* cpu, u8 val);
+static bool pull_stack(Cpu* cpu, u8* v_addr);
+
+//6502 Instructions
+static size_t brk(Cpu* cpu, const operand_t* operand);
+
 
 static Instruction MOS_6502_INSTRUCTION_SET[] = {
-    //{.mnemonic = "BRK", .addr_mode = IMPLIED, .run = brk}
+    {.mnemonic = "BRK", .addr_mode = IMPLIED, .run = brk}
 };
 
 Cpu* build_cpu_from_mem(u8* cpu_mem) {
@@ -20,7 +33,7 @@ Cpu* build_cpu_from_mem(u8* cpu_mem) {
 
    cpu->cpu_state = CPU_STOPPED;
    cpu->r_a  = cpu->r_x = cpu->r_y = 0;
-   cpu->r_sp = 0xFD;
+   cpu->r_sp = STACK_SIZE;
    cpu->mem  = cpu_mem;
    cpu->r_pc = reset_vector(cpu_mem);
    cpu->r_sr = 0x04;
@@ -34,18 +47,17 @@ size_t exec_instruction(Cpu* cpu) {
     const operand_t operand = get_operand(cpu, inst.addr_mode); 
     //TODO: Implement instruction printing in Assembly
 
+    //TODO: If we return 0 cycles then stop NES (0 cycle can be returned in case of Stack overflow or underflow)
     return inst.run(cpu, &operand) + operand.extra_cycles;
 }
 
-static u16 reset_vector(u8* cpu_mem) {
-   u8 reset_vec_arr[2];
-
-   reset_vec_arr[0] = cpu_mem[0xFFFC];
-   reset_vec_arr[1] = cpu_mem[0xFFFD];
-
-   return read_little_endian_u16(reset_vec_arr);
+static inline u16 reset_vector(u8* cpu_mem) {
+   return read_little_endian_u16(cpu_mem[0xFFFC], cpu_mem[0xFFFD]);
 }
 
+static inline u16 irq_interrupt_vector(u8* cpu_mem) {
+   return read_little_endian_u16(cpu_mem[0xFFFE], cpu_mem[0xFFFF]);
+}
 
 static u8 read_u8(Cpu* cpu, u16 addr) {
     if (addr < 0x2000) {
@@ -121,8 +133,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
         case ABSOLUTE: {
             const u8 msb = read_u8(cpu, cpu->r_pc + 2);
             const u8 lsb = read_u8(cpu, cpu->r_pc + 1);
-            u8 addr_arr[] = {lsb, msb};
-            const u16 addr = read_little_endian_u16(addr_arr);
+            const u16 addr = read_little_endian_u16(lsb, msb);
             operand.addr = addr;
             operand.val = read_u8(cpu, addr);
             cpu->r_pc += 3;
@@ -131,8 +142,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
         case ABSOLUTE_X: {
             const u8 msb = read_u8(cpu, cpu->r_pc + 2);
             const u8 lsb = read_u8(cpu, cpu->r_pc + 1);
-            u8 addr_arr[] = {lsb, msb};
-            const u16 addr = read_little_endian_u16(addr_arr) + cpu->r_x;
+            const u16 addr = read_little_endian_u16(lsb, msb) + cpu->r_x;
             operand.addr = addr & 0xFFFF;
             operand.val = read_u8(cpu, addr);
             //If the page changes then we should increase the instruction cycle by 1
@@ -143,8 +153,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
         case ABSOLUTE_Y: {
             const u8 msb = read_u8(cpu, cpu->r_pc + 2);
             const u8 lsb = read_u8(cpu, cpu->r_pc + 1);
-            u8 addr_arr[] = {lsb, msb};
-            const u16 addr = read_little_endian_u16(addr_arr) + cpu->r_y;
+            const u16 addr = read_little_endian_u16(lsb, msb) + cpu->r_y;
             operand.addr = addr & 0xFFFF;
             operand.val = read_u8(cpu, addr);
             //If the page changes then we should increase the instruction cycle by 1
@@ -153,12 +162,10 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             break;
         }
         case INDIRECT: {
-            u8 lsb_addr_arr[] = { read_u8(cpu, cpu->r_pc + 1), read_u8(cpu, cpu->r_pc + 2) };
-            const u16 lsb_addr = read_little_endian_u16(lsb_addr_arr);
+            const u16 lsb_addr = read_little_endian_u16(read_u8(cpu, cpu->r_pc + 1), read_u8(cpu, cpu->r_pc + 2));
             const u8 lsb = read_u8(cpu, lsb_addr);
             const u8 msb = read_u8(cpu, lsb_addr + 1);
-            u8 addr_arr[] = {lsb, msb};
-            const u16 addr = read_little_endian_u16(addr_arr);
+            const u16 addr = read_little_endian_u16(lsb, msb);
             operand.addr = addr;
             operand.val = read_u8(cpu, operand.addr);
             cpu->r_pc += 3;
@@ -168,8 +175,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             const u16 lsb_addr = (((u16)read_u8(cpu, cpu->r_pc + 1)) + cpu->r_x) & 0x00FF;
             const u8 lsb = read_u8(cpu, lsb_addr);
             const u8 msb = read_u8(cpu, lsb_addr + 1);
-            u8 addr_arr[] = {lsb, msb};
-            const u16 addr = read_little_endian_u16(addr_arr);
+            const u16 addr = read_little_endian_u16(lsb, msb);
             operand.addr = addr;
             operand.val = read_u8(cpu, addr);
             cpu->r_pc += 2;
@@ -179,8 +185,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             const u16 lsb_addr = (u16) read_u8(cpu, cpu->r_pc  + 1);
             const u8 lsb = read_u8(cpu, lsb_addr);
             const u8 msb = read_u8(cpu, lsb_addr + 1);
-            u8 addr_arr[] = {lsb, msb};
-            u16 addr = (read_little_endian_u16(addr_arr) + cpu->r_y) & 0xFFFF;
+            u16 addr = (read_little_endian_u16(lsb, msb) + cpu->r_y) & 0xFFFF;
             operand.addr = addr;
             operand.val = read_u8(cpu, addr);
             operand.extra_cycles = msb != ((addr >> 8) & 0xFF) ? 1 : 0;
@@ -189,6 +194,46 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
         }
 
     }
-
     return operand;
+}
+
+static size_t brk(Cpu* cpu, const operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, BREAK_COMMAND, true);
+    return 7;
+}
+
+static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
+    if (set) {
+        cpu->r_sr |= flag;
+    }
+    else {
+        cpu->r_sr &= ~flag;
+    }
+}
+
+static inline bool get_cpu_flag(Cpu* cpu, StatusFlag flag) {
+    return (cpu->r_sr & flag) > 0;
+}
+
+static bool push_stack(Cpu* cpu, u8 val) {
+    if (cpu->r_sp == 0x00) {
+        fprintf(stderr, "FATAL: Stack overflow occured at address 0x%x Exiting...", cpu->r_pc);
+        return false; 
+    }
+    
+    const u16 stack_addr = 0x0100 | cpu->r_sp;
+    cpu->mem[stack_addr] = val;
+    cpu->r_sp--;
+    return true;
+}
+
+static bool pull_stack(Cpu* cpu, u8* v_addr) {
+    if (cpu->r_sp == STACK_SIZE) {
+        fprintf(stderr, "FATAL: Stack underflow occured at address 0x%x Exiting...", cpu->r_pc);
+        return false; 
+    }
+    const u16 stack_addr = 0x0100 | cpu->r_sp;
+    *v_addr = cpu->mem[stack_addr];
+    cpu->r_sp++;
+    return true;
 }
