@@ -31,6 +31,7 @@ typedef enum AddrMode {
 typedef struct operand_t {
     u8 val;
     u8 extra_cycles;
+    AddrMode addr_mode;
     u16 addr;
 } operand_t;
 
@@ -62,7 +63,7 @@ typedef struct Instruction {
     char mnemonic[3];
     AddrMode addr_mode;
     size_t cycles;
-    void (*exec)(Cpu* cpu, const operand_t* operand);
+    void (*exec)(Cpu* cpu, operand_t* operand);
 } Instruction;
 
 Cpu* build_cpu_from_mem(u8* cpu_mem);

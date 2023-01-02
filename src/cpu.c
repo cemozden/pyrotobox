@@ -21,8 +21,13 @@ static bool push_stack(Cpu* cpu, u8 val);
 static bool pop_stack(Cpu* cpu, u8* v_addr);
 
 //6502 Instructions
-static void adc(Cpu* cpu, const operand_t* operand);
-static void brk(Cpu* cpu, const operand_t* operand);
+static void adc(Cpu* cpu, operand_t* operand);
+static void aand(Cpu* cpu, operand_t* operand);
+static void asl(Cpu* cpu, operand_t* operand);
+static void bcc(Cpu* cpu, operand_t* operand);
+static void bcs(Cpu* cpu, operand_t* operand);
+static void beq(Cpu* cpu, operand_t* operand);
+static void brk(Cpu* cpu, operand_t* operand);
 
 
 static Instruction MOS_6502_INSTRUCTION_SET[] = {
@@ -45,7 +50,7 @@ Cpu* build_cpu_from_mem(u8* cpu_mem) {
 size_t exec_instruction(Cpu* cpu) {
     const u8 opcode = read_u8(cpu, cpu->r_pc);
     const Instruction inst = MOS_6502_INSTRUCTION_SET[opcode];
-    const operand_t operand = get_operand(cpu, inst.addr_mode); 
+    operand_t operand = get_operand(cpu, inst.addr_mode); 
     //TODO: Implement instruction printing in Assembly
 
     inst.exec(cpu, &operand);
@@ -95,7 +100,7 @@ static void write_u8(Cpu* cpu, u16 addr, u8 val) {
 }
 
 static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
-    operand_t operand = {.val = 0x00, .extra_cycles = 0x00, .addr = 0x0000};
+    operand_t operand = {.val = 0x00, .extra_cycles = 0x00, .addr_mode = addr_mode, .addr = 0x0000};
     
     switch (addr_mode) {
         case IMPLIED:
@@ -199,13 +204,72 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
     return operand;
 }
 
-static void brk(Cpu* cpu, const operand_t __attribute__((__unused__)) *operand) {
-    set_cpu_flag(cpu, BREAK_COMMAND, true);
+// 6502 INSTRUCTION IMPLEMENTATIONS
+static void adc(Cpu* cpu, operand_t* operand) {
+    const u16 sum = ((u16) cpu->r_a) + operand->val + ((u16) get_cpu_flag(cpu, CARRY_FLAG)); 
+
+    set_cpu_flag(cpu, CARRY_FLAG, sum > 0x00FF);
+    set_cpu_flag(cpu, ZERO_FLAG, sum == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, sum & 0x0080);
+  	set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) sum)) & 0x0080);
+    
+    cpu->r_a = sum & 0x00FF;
 }
 
+static void aand(Cpu* cpu, operand_t* operand) {
+    const u8 result = cpu->r_a & operand->val;
 
-static void adc(Cpu* cpu, const operand_t* operand) {
-    
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+
+    cpu->r_a = result;
+}
+
+static void asl(Cpu* cpu, operand_t* operand) {
+    u8 old_val, new_val;
+
+    if (operand->addr_mode == ACCUMULATOR) {
+        old_val = cpu->r_a;
+        cpu->r_a = new_val = cpu->r_a << 1;
+    } else {
+        old_val = operand->val;
+        new_val = operand->val << 1;
+        write_u8(cpu, operand->addr, new_val);
+    }
+
+    set_cpu_flag(cpu, CARRY_FLAG, old_val >> 7);
+    set_cpu_flag(cpu, ZERO_FLAG, new_val == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, new_val & 0x80);
+}
+
+static void bcc(Cpu* cpu, operand_t* operand) {
+    if (!get_cpu_flag(cpu, CARRY_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
+static void bcs(Cpu* cpu, operand_t* operand) {
+    if (get_cpu_flag(cpu, CARRY_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
+static void beq(Cpu* cpu, operand_t* operand) {
+    if (get_cpu_flag(cpu, ZERO_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
+static void brk(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
 }
 
 static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
