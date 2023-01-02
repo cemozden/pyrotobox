@@ -211,7 +211,7 @@ static void adc(Cpu* cpu, operand_t* operand) {
     set_cpu_flag(cpu, CARRY_FLAG, sum > 0x00FF);
     set_cpu_flag(cpu, ZERO_FLAG, sum == 0x0000);
     set_cpu_flag(cpu, NEGATIVE_FLAG, sum & 0x0080);
-  	set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) sum)) & 0x0080);
+    set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) sum)) & 0x0080);
     
     cpu->r_a = sum & 0x00FF;
 }
