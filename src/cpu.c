@@ -18,14 +18,15 @@ static inline bool get_cpu_flag(Cpu* cpu, StatusFlag flag);
 
 // Stack ops
 static bool push_stack(Cpu* cpu, u8 val);
-static bool pull_stack(Cpu* cpu, u8* v_addr);
+static bool pop_stack(Cpu* cpu, u8* v_addr);
 
 //6502 Instructions
-static size_t brk(Cpu* cpu, const operand_t* operand);
+static void adc(Cpu* cpu, const operand_t* operand);
+static void brk(Cpu* cpu, const operand_t* operand);
 
 
 static Instruction MOS_6502_INSTRUCTION_SET[] = {
-    {.mnemonic = "BRK", .addr_mode = IMPLIED, .run = brk}
+    {.mnemonic = "BRK", .addr_mode = IMPLIED, .cycles = 7, .exec = brk}
 };
 
 Cpu* build_cpu_from_mem(u8* cpu_mem) {
@@ -47,8 +48,9 @@ size_t exec_instruction(Cpu* cpu) {
     const operand_t operand = get_operand(cpu, inst.addr_mode); 
     //TODO: Implement instruction printing in Assembly
 
+    inst.exec(cpu, &operand);
     //TODO: If we return 0 cycles then stop NES (0 cycle can be returned in case of Stack overflow or underflow)
-    return inst.run(cpu, &operand) + operand.extra_cycles;
+    return inst.cycles + operand.extra_cycles;
 }
 
 static inline u16 reset_vector(u8* cpu_mem) {
@@ -197,9 +199,13 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
     return operand;
 }
 
-static size_t brk(Cpu* cpu, const operand_t __attribute__((__unused__)) *operand) {
+static void brk(Cpu* cpu, const operand_t __attribute__((__unused__)) *operand) {
     set_cpu_flag(cpu, BREAK_COMMAND, true);
-    return 7;
+}
+
+
+static void adc(Cpu* cpu, const operand_t* operand) {
+    
 }
 
 static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
@@ -221,18 +227,18 @@ static bool push_stack(Cpu* cpu, u8 val) {
         return false; 
     }
     
-    const u16 stack_addr = 0x0100 | cpu->r_sp;
+    const u16 stack_addr = STACK_ADDR_OFFSET | cpu->r_sp;
     cpu->mem[stack_addr] = val;
     cpu->r_sp--;
     return true;
 }
 
-static bool pull_stack(Cpu* cpu, u8* v_addr) {
+static bool pop_stack(Cpu* cpu, u8* v_addr) {
     if (cpu->r_sp == STACK_SIZE) {
         fprintf(stderr, "FATAL: Stack underflow occured at address 0x%x Exiting...", cpu->r_pc);
         return false; 
     }
-    const u16 stack_addr = 0x0100 | cpu->r_sp;
+    const u16 stack_addr = STACK_ADDR_OFFSET | cpu->r_sp;
     *v_addr = cpu->mem[stack_addr];
     cpu->r_sp++;
     return true;

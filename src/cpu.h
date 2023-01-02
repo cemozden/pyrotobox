@@ -1,6 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
 #define STACK_SIZE 0xFD
+#define STACK_ADDR_OFFSET 0x0100
 
 #include "types.h"
 #include <stdlib.h>
@@ -60,7 +61,8 @@ typedef struct Cpu {
 typedef struct Instruction {
     char mnemonic[3];
     AddrMode addr_mode;
-    size_t (*run)(Cpu* cpu, const operand_t* operand);
+    size_t cycles;
+    void (*exec)(Cpu* cpu, const operand_t* operand);
 } Instruction;
 
 Cpu* build_cpu_from_mem(u8* cpu_mem);
