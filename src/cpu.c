@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
+
 #include "cpu.h"
 #include "utils.h"
-#include <stdbool.h>
 
 inline static u16 reset_vector(u8* cpu_mem);
 inline static u16 irq_interrupt_vector(u8* cpu_mem);
@@ -27,7 +28,28 @@ static void asl(Cpu* cpu, operand_t* operand);
 static void bcc(Cpu* cpu, operand_t* operand);
 static void bcs(Cpu* cpu, operand_t* operand);
 static void beq(Cpu* cpu, operand_t* operand);
+static void bit(Cpu* cpu, operand_t* operand);
+static void bmi(Cpu* cpu, operand_t* operand);
+static void bne(Cpu* cpu, operand_t* operand);
+static void bpl(Cpu* cpu, operand_t* operand);
 static void brk(Cpu* cpu, operand_t* operand);
+static void bvc(Cpu* cpu, operand_t* operand);
+static void bvs(Cpu* cpu, operand_t* operand);
+static inline void clc(Cpu* cpu, operand_t* operand);
+static inline void cld(Cpu* cpu, operand_t* operand);
+static inline void cli(Cpu* cpu, operand_t* operand);
+static inline void clv(Cpu* cpu, operand_t* operand);
+static void cmp(Cpu* cpu, operand_t* operand);
+static void cpx(Cpu* cpu, operand_t* operand);
+static void cpy(Cpu* cpu, operand_t* operand);
+static void dec(Cpu* cpu, operand_t* operand);
+static void dex(Cpu* cpu, operand_t* operand);
+static void dey(Cpu* cpu, operand_t* operand);
+static void eor(Cpu* cpu, operand_t* operand);
+static void inc(Cpu* cpu, operand_t* operand);
+static void inx(Cpu* cpu, operand_t* operand);
+static void iny(Cpu* cpu, operand_t* operand);
+static void jmp(Cpu* cpu, operand_t* operand);
 
 
 static Instruction MOS_6502_INSTRUCTION_SET[] = {
@@ -269,7 +291,171 @@ static void beq(Cpu* cpu, operand_t* operand) {
     }
 }
 
+static void bit(Cpu* cpu, operand_t* operand) {
+    const u8 result = cpu->r_a & operand->val;
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, OVERFLOW_FLAG, operand->val & 0x40);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, operand->val & 0x80);
+}
+
+static void bmi(Cpu* cpu, operand_t* operand) {
+    if (get_cpu_flag(cpu, NEGATIVE_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
+static void bne(Cpu* cpu, operand_t* operand) {
+    if (!get_cpu_flag(cpu, ZERO_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
+static void bpl(Cpu* cpu, operand_t* operand) {
+    if (!get_cpu_flag(cpu, NEGATIVE_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
 static void brk(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    u8 msb_pc, lsb_pc;
+    write_little_endian_u16(cpu->r_pc, &lsb_pc, &msb_pc);
+
+    push_stack(cpu, lsb_pc);
+    push_stack(cpu, msb_pc);
+    push_stack(cpu, cpu->r_sr);
+
+    set_cpu_flag(cpu, BREAK_COMMAND, true);
+    cpu->r_pc = irq_interrupt_vector(cpu->mem);
+}
+
+static void bvc(Cpu* cpu, operand_t* operand) {
+    if (!get_cpu_flag(cpu, OVERFLOW_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
+static void bvs(Cpu* cpu, operand_t* operand) {
+    if (get_cpu_flag(cpu, OVERFLOW_FLAG)) {
+        const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
+        const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
+        cpu->r_pc += relative_val;
+        operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    }
+}
+
+static inline void clc(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, CARRY_FLAG, false);
+}
+
+static inline void cld(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, DECIMAL_FLAG, false);
+}
+
+static inline void cli(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, INTERRUPT_DISABLED_FLAG, false);
+}
+
+static inline void clv(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, OVERFLOW_FLAG, false);
+}
+
+static void cmp(Cpu* cpu, operand_t* operand) {
+    const u16 result = (u16) cpu->r_a - (u16) operand->val;
+
+    set_cpu_flag(cpu, CARRY_FLAG, cpu->r_a >= operand->val);
+    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x0080);
+}
+
+static void cpx(Cpu* cpu, operand_t* operand) {
+    const u16 result = (u16) cpu->r_x - (u16) operand->val;
+
+    set_cpu_flag(cpu, CARRY_FLAG, cpu->r_x >= operand->val);
+    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x0080);
+}
+
+static void cpy(Cpu* cpu, operand_t* operand) {
+    const u16 result = (u16) cpu->r_y - (u16) operand->val;
+
+    set_cpu_flag(cpu, CARRY_FLAG, cpu->r_y >= operand->val);
+    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x0080);
+}
+
+static void dec(Cpu* cpu, operand_t* operand) {
+    const u16 result = ((u16) operand->val) - 1;
+    write_u8(cpu, operand->addr, result & 0x00FF);
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+}
+
+static void dex(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    const u16 result = ((u16) cpu->r_x) - 1;
+    cpu->r_x = result & 0x00FF;
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+}
+
+static void dey(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    const u16 result = ((u16) cpu->r_y) - 1;
+    cpu->r_y = result & 0x00FF;
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+}
+
+static void eor(Cpu* cpu, operand_t* operand) {
+    const u8 result = cpu->r_a ^ operand->val;
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+
+    cpu->r_a = result;
+}
+
+static void inc(Cpu* cpu, operand_t* operand) {
+    const u16 result = ((u16) operand->val) + 1;
+    write_u8(cpu, operand->addr, result & 0x00FF);
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+}
+
+static void inx(Cpu* cpu, operand_t* operand) {
+    const u16 result = ((u16) cpu->r_x) + 1;
+    cpu->r_x = result & 0x00FF;
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+}
+
+static void iny(Cpu* cpu, operand_t* operand) {
+    const u16 result = ((u16) cpu->r_y) + 1;
+    cpu->r_y = result & 0x00FF;
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+}
+
+//FIXME: Watch out for the jump addresses
+static void jmp(Cpu* cpu, operand_t* operand) {
+    cpu->r_pc = operand->addr;
 }
 
 static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
