@@ -90,7 +90,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "ORA", .addr_mode = ZERO_PAGE, .cycles = 3, .exec = ora},
     {.mnemonic = "ASL", .addr_mode = ZERO_PAGE, .cycles = 5, .exec = asl},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "php", .addr_mode = IMPLIED, .cycles = 3, .exec = php},
+    {.mnemonic = "PHP", .addr_mode = IMPLIED, .cycles = 3, .exec = php},
     {.mnemonic = "ORA", .addr_mode = IMMEDIATE, .cycles = 2, .exec = ora},
     {.mnemonic = "ASL", .addr_mode = ACCUMULATOR, .cycles = 2, .exec = asl},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -98,7 +98,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "ORA", .addr_mode = ABSOLUTE, .cycles = 4, .exec = ora},
     {.mnemonic = "ASL", .addr_mode = ABSOLUTE, .cycles = 6, .exec = asl},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BPL", .addr_mode = IMPLIED, .cycles = 2, .exec = bpl},
+    {.mnemonic = "BPL", .addr_mode = RELATIVE, .cycles = 2, .exec = bpl},
     {.mnemonic = "ORA", .addr_mode = INDIRECT_Y, .cycles = 5, .exec = ora},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -130,7 +130,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "AND", .addr_mode = ABSOLUTE, .cycles = 4, .exec = aand},
     {.mnemonic = "ROL", .addr_mode = ABSOLUTE, .cycles = 6, .exec = rol},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BMI", .addr_mode = IMPLIED, .cycles = 2, .exec = bmi},
+    {.mnemonic = "BMI", .addr_mode = RELATIVE, .cycles = 2, .exec = bmi},
     {.mnemonic = "AND", .addr_mode = INDIRECT_Y, .cycles = 5, .exec = aand},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -162,7 +162,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "EOR", .addr_mode = ABSOLUTE, .cycles = 4, .exec = eor},
     {.mnemonic = "LSR", .addr_mode = ABSOLUTE, .cycles = 6, .exec = lsr},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BVC", .addr_mode = IMPLIED, .cycles = 2, .exec = bvc},
+    {.mnemonic = "BVC", .addr_mode = RELATIVE, .cycles = 2, .exec = bvc},
     {.mnemonic = "EOR", .addr_mode = INDIRECT_Y, .cycles = 5, .exec = eor},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -194,7 +194,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "ADC", .addr_mode = ABSOLUTE, .cycles = 4, .exec = adc},
     {.mnemonic = "ROR", .addr_mode = ABSOLUTE, .cycles = 6, .exec = ror},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BVS", .addr_mode = IMPLIED, .cycles = 2, .exec = bvs},
+    {.mnemonic = "BVS", .addr_mode = RELATIVE, .cycles = 2, .exec = bvs},
     {.mnemonic = "ADC", .addr_mode = INDIRECT_Y, .cycles = 5, .exec = adc},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -226,7 +226,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "STA", .addr_mode = ABSOLUTE, .cycles = 4, .exec = sta},
     {.mnemonic = "STX", .addr_mode = ABSOLUTE, .cycles = 4, .exec = stx},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BCC", .addr_mode = IMPLIED, .cycles = 2, .exec = bcc},
+    {.mnemonic = "BCC", .addr_mode = RELATIVE, .cycles = 2, .exec = bcc},
     {.mnemonic = "STA", .addr_mode = INDIRECT_Y, .cycles = 6, .exec = sta},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -258,7 +258,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "LDA", .addr_mode = ABSOLUTE, .cycles = 4, .exec = lda},
     {.mnemonic = "LDX", .addr_mode = ABSOLUTE, .cycles = 4, .exec = ldx},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BCS", .addr_mode = IMPLIED, .cycles = 2, .exec = bcs},
+    {.mnemonic = "BCS", .addr_mode = RELATIVE, .cycles = 2, .exec = bcs},
     {.mnemonic = "LDA", .addr_mode = INDIRECT_Y, .cycles = 5, .exec = lda},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -290,7 +290,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "CMP", .addr_mode = ABSOLUTE, .cycles = 4, .exec = cmp},
     {.mnemonic = "DEC", .addr_mode = ABSOLUTE, .cycles = 6, .exec = dec},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BNE", .addr_mode = IMPLIED, .cycles = 2, .exec = bne},
+    {.mnemonic = "BNE", .addr_mode = RELATIVE, .cycles = 2, .exec = bne},
     {.mnemonic = "CMP", .addr_mode = INDIRECT_Y, .cycles = 5, .exec = cmp},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -322,7 +322,7 @@ static Instruction MOS_6502_INSTRUCTION_SET[] = {
     {.mnemonic = "SBC", .addr_mode = ABSOLUTE, .cycles = 4, .exec = sbc},
     {.mnemonic = "INC", .addr_mode = ABSOLUTE, .cycles = 6, .exec = inc},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
-    {.mnemonic = "BEQ", .addr_mode = IMPLIED, .cycles = 2, .exec = beq},
+    {.mnemonic = "BEQ", .addr_mode = RELATIVE, .cycles = 2, .exec = beq},
     {.mnemonic = "SBC", .addr_mode = INDIRECT_Y, .cycles = 5, .exec = sbc},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
     {.mnemonic = "???", .addr_mode = IMPLIED, .cycles = 0, .exec = nop},
@@ -358,6 +358,7 @@ size_t exec_instruction(Cpu* cpu) {
     const Instruction inst = MOS_6502_INSTRUCTION_SET[opcode];
     operand_t operand = get_operand(cpu, inst.addr_mode); 
     print_inst(cpu, &operand, &inst);
+    cpu->r_pc += operand.bytes;
 
     inst.exec(cpu, &operand);
     return inst.cycles + operand.extra_cycles;
@@ -381,8 +382,8 @@ static u8 read_u8(Cpu* cpu, u16 addr) {
     else if (addr >= 0x2000 && addr < 0x4000) {
         //TODO: PPU register IO should be handled as soon as PPU implementation starts
         const u16 masked_addr = addr & 0x2007;
-        printf("PPU is not implemented yet! CPU PC: %x\n", cpu->r_pc);
-        exit(-4);
+        //printf("PPU is not implemented yet! CPU PC: %x\n", cpu->r_pc);
+        //exit(-4);
         return cpu->mem[masked_addr];
     }
     else return cpu->mem[addr];
@@ -397,46 +398,47 @@ static void write_u8(Cpu* cpu, u16 addr, u8 val) {
     //PPU Registers
     else if (addr >= 0x2000 && addr < 0x4000) {
         //TODO: PPU register IO should be handled as soon as PPU implementation starts
-        //const u16 masked_addr = addr & 0x2007;
-        printf("PPU is not implemented yet! CPU PC: %x\n", cpu->r_pc);
-        exit(-4);
+        const u16 masked_addr = addr & 0x2007;
+        cpu->mem[masked_addr] = val;
+        //printf("PPU is not implemented yet! CPU PC: 0x%x\n", cpu->r_pc);
+        //exit(-4);
     }
     else cpu->mem[addr] = val;
 }
 
 static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
-    operand_t operand = {.val = 0x00, .extra_cycles = 0x00, .addr_mode = addr_mode, .addr = 0x0000};
+    operand_t operand = {.val = 0x00, .extra_cycles = 0x00, .bytes = 0, .addr_mode = addr_mode, .addr = 0x0000};
     
     switch (addr_mode) {
         case IMPLIED:
-            cpu->r_pc++;
+            operand.bytes = 1;
             break;
         case ACCUMULATOR:
             operand.val = cpu->r_a;
-            cpu->r_pc++;
+            operand.bytes = 1;
             break;
         case IMMEDIATE:
             operand.addr = cpu->r_pc + 1;
             operand.val = read_u8(cpu, cpu->r_pc + 1);
-            cpu->r_pc += 2;
+            operand.bytes = 2;
             break; 
         case ZERO_PAGE:
             operand.addr = read_u8(cpu, cpu->r_pc + 1);
             operand.val = read_u8(cpu, operand.addr);
-            cpu->r_pc += 2;
+            operand.bytes = 2;
             break; 
         case ZERO_PAGE_X: {
             const u16 zp_addr = read_u8(cpu, cpu->r_pc + 1);
             operand.addr = (zp_addr + cpu->r_x) & 0x00FF;
             operand.val = read_u8(cpu, operand.addr);
-            cpu->r_pc += 2;
+            operand.bytes = 2;
             break; 
        }
         case ZERO_PAGE_Y: {
             const u16 zp_addr = read_u8(cpu, cpu->r_pc + 1);
             operand.addr = (zp_addr + cpu->r_y) & 0x00FF;
             operand.val = read_u8(cpu, operand.addr);
-            cpu->r_pc += 2;
+            operand.bytes = 2;
             break; 
        }
         case RELATIVE: 
@@ -448,7 +450,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             const u16 addr = read_little_endian_u16(lsb, msb);
             operand.addr = addr;
             operand.val = read_u8(cpu, addr);
-            cpu->r_pc += 3;
+            operand.bytes = 3;
             break;
         }
         case ABSOLUTE_X: {
@@ -459,7 +461,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             operand.val = read_u8(cpu, addr);
             //If the page changes then we should increase the instruction cycle by 1
             operand.extra_cycles = msb != ((addr >> 8) & 0xFF) ? 1 : 0;
-            cpu->r_pc += 3;
+            operand.bytes = 3;
             break;
         }
         case ABSOLUTE_Y: {
@@ -470,7 +472,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             operand.val = read_u8(cpu, addr);
             //If the page changes then we should increase the instruction cycle by 1
             operand.extra_cycles = msb != ((addr >> 8) & 0xFF) ? 1 : 0;
-            cpu->r_pc += 3;
+            operand.bytes = 3;
             break;
         }
         case INDIRECT: {
@@ -480,7 +482,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             const u16 addr = read_little_endian_u16(lsb, msb);
             operand.addr = addr;
             operand.val = read_u8(cpu, operand.addr);
-            cpu->r_pc += 3;
+            operand.bytes = 3;
             break;
         }
         case INDIRECT_X: {
@@ -490,7 +492,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             const u16 addr = read_little_endian_u16(lsb, msb);
             operand.addr = addr;
             operand.val = read_u8(cpu, addr);
-            cpu->r_pc += 2;
+            operand.bytes = 2;
             break;
         }
         case INDIRECT_Y: {
@@ -501,7 +503,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             operand.addr = addr;
             operand.val = read_u8(cpu, addr);
             operand.extra_cycles = msb != ((addr >> 8) & 0xFF) ? 1 : 0;
-            cpu->r_pc += 2;
+            operand.bytes = 2;
             break;
         }
 
@@ -510,7 +512,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
 }
 
 static void print_inst(const Cpu* cpu, const operand_t* operand, const Instruction* inst) {
-    printf("$%x:\t%s  ", cpu->r_pc, inst->mnemonic);
+    printf("$%X:\t%s  ", cpu->r_pc, inst->mnemonic);
 
     switch (operand->addr_mode) {
         case IMPLIED:
@@ -520,37 +522,37 @@ static void print_inst(const Cpu* cpu, const operand_t* operand, const Instructi
             printf("A\n");
             break;
         case IMMEDIATE:
-            printf("#%d\n", operand->val);
+            printf("#%X\n", operand->val);
             break;
         case ZERO_PAGE:
-            printf("$%x\n", operand->addr);
+            printf("$%X\n", operand->addr);
             break;
         case ZERO_PAGE_X:
-            printf("$%x, X\n", operand->addr);
+            printf("$%X, X\n", operand->addr);
             break;
         case ZERO_PAGE_Y:
-            printf("$%x, Y\n", operand->addr);
+            printf("$%X, Y\n", operand->addr);
             break;
         case RELATIVE:
-            printf("*%d\n", ((i8) operand->val));
+            printf("*%X\n", ((i8) operand->val));
             break;
         case ABSOLUTE:
             printf("$%x\n", operand->addr);
             break;
         case ABSOLUTE_X:
-            printf("$%x, X\n", operand->addr);
+            printf("$%X, X\n", operand->addr);
             break;
         case ABSOLUTE_Y:
-            printf("$%x, Y\n", operand->addr);
+            printf("$%X, Y\n", operand->addr);
             break;
         case INDIRECT:
-            printf("($%x)\n", operand->addr);
+            printf("($%X)\n", operand->addr);
             break;
         case INDIRECT_X:
-            printf("($%x, X)\n", operand->addr);
+            printf("($%X, X)\n", operand->val);
             break;
         case INDIRECT_Y:
-            printf("($%x, Y)\n", operand->addr);
+            printf("($%X, Y)\n", operand->val);
             break;
     }
 }
@@ -1009,7 +1011,7 @@ static inline bool get_cpu_flag(Cpu* cpu, StatusFlag flag) {
 //TODO: Check push pull statuses
 static bool push_stack(Cpu* cpu, u8 val) {
     if (cpu->r_sp == 0x00) {
-        fprintf(stderr, "FATAL: Stack overflow occured at address 0x%x Exiting...", cpu->r_pc);
+        fprintf(stderr, "FATAL: Stack overflow occured at address 0x%X Exiting...\n", cpu->r_pc);
         return false; 
     }
     
@@ -1021,7 +1023,7 @@ static bool push_stack(Cpu* cpu, u8 val) {
 
 static bool pop_stack(Cpu* cpu, u8* v_addr) {
     if (cpu->r_sp == STACK_SIZE) {
-        fprintf(stderr, "FATAL: Stack underflow occured at address 0x%x Exiting...", cpu->r_pc);
+        fprintf(stderr, "FATAL: Stack underflow occured at address 0x%X Exiting...\n", cpu->r_pc);
         return false; 
     }
     const u16 stack_addr = STACK_ADDR_OFFSET | cpu->r_sp;

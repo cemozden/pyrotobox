@@ -101,7 +101,7 @@ void run_nes(Nes* nes) {
        const size_t cycles = exec_instruction(cpu);
 
        if (cycles == 0) {
-            printf("Error occured while CPU is processing instructions at address $%x", cpu->r_pc);
+            printf("Error occured while CPU is processing instructions at address $%x\n", cpu->r_pc);
             break;
        }
 

@@ -31,6 +31,7 @@ typedef enum AddrMode {
 typedef struct operand_t {
     u8 val;
     u8 extra_cycles;
+    u8 bytes;
     AddrMode addr_mode;
     u16 addr;
 } operand_t;
