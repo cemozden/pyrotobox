@@ -381,7 +381,7 @@ static u8 read_u8(Cpu* cpu, u16 addr) {
     else if (addr >= 0x2000 && addr < 0x4000) {
         //TODO: PPU register IO should be handled as soon as PPU implementation starts
         const u16 masked_addr = addr & 0x2007;
-        printf("PPU is not implemented yet! CPU PC: %d", cpu->r_pc);
+        printf("PPU is not implemented yet! CPU PC: %x\n", cpu->r_pc);
         exit(-4);
         return cpu->mem[masked_addr];
     }
@@ -398,7 +398,7 @@ static void write_u8(Cpu* cpu, u16 addr, u8 val) {
     else if (addr >= 0x2000 && addr < 0x4000) {
         //TODO: PPU register IO should be handled as soon as PPU implementation starts
         //const u16 masked_addr = addr & 0x2007;
-        printf("PPU Is not implemented yet! CPU PC: %d", cpu->r_pc);
+        printf("PPU is not implemented yet! CPU PC: %x\n", cpu->r_pc);
         exit(-4);
     }
     else cpu->mem[addr] = val;
