@@ -514,6 +514,7 @@ static void print_inst(const Cpu* cpu, const operand_t* operand, const Instructi
 
     switch (operand->addr_mode) {
         case IMPLIED:
+            printf("\n");
             break;
         case ACCUMULATOR:
             printf("A\n");
