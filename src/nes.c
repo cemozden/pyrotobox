@@ -99,6 +99,12 @@ void run_nes(Nes* nes) {
     //FIXME: Implement the infinite loop speed according to 2A03 CPU clock cycle.
     while (cpu->cpu_state == CPU_RUNNING) {
        const size_t cycles = exec_instruction(cpu);
+
+       if (cycles == 0) {
+            printf("Error occured while CPU is processing instructions at address $%x", cpu->r_pc);
+            break;
+       }
+
        cpu->cycles += cycles;
        cpu->instructions_performed++;
     }

@@ -10,6 +10,7 @@ inline static u16 irq_interrupt_vector(u8* cpu_mem);
 static u8 read_u8(Cpu* cpu, u16 addr);
 
 static void write_u8(Cpu* cpu, u16 addr, u8 val);
+static void print_inst(const Cpu* cpu, const operand_t* operand, const Instruction* inst);
 
 static operand_t get_operand(Cpu* cpu, AddrMode addr_mode);
 
@@ -356,10 +357,9 @@ size_t exec_instruction(Cpu* cpu) {
     const u8 opcode = read_u8(cpu, cpu->r_pc);
     const Instruction inst = MOS_6502_INSTRUCTION_SET[opcode];
     operand_t operand = get_operand(cpu, inst.addr_mode); 
-    //TODO: Implement instruction printing in Assembly
+    print_inst(cpu, &operand, &inst);
 
     inst.exec(cpu, &operand);
-    //TODO: If we return 0 cycles then stop NES (0 cycle can be returned in case of Stack overflow or underflow)
     return inst.cycles + operand.extra_cycles;
 }
 
@@ -507,6 +507,51 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
 
     }
     return operand;
+}
+
+static void print_inst(const Cpu* cpu, const operand_t* operand, const Instruction* inst) {
+    printf("$%x:\t%s  ", cpu->r_pc, inst->mnemonic);
+
+    switch (operand->addr_mode) {
+        case IMPLIED:
+            break;
+        case ACCUMULATOR:
+            printf("A\n");
+            break;
+        case IMMEDIATE:
+            printf("#%d\n", operand->val);
+            break;
+        case ZERO_PAGE:
+            printf("$%x\n", operand->addr);
+            break;
+        case ZERO_PAGE_X:
+            printf("$%x, X\n", operand->addr);
+            break;
+        case ZERO_PAGE_Y:
+            printf("$%x, Y\n", operand->addr);
+            break;
+        case RELATIVE:
+            printf("*%d\n", ((i8) operand->val));
+            break;
+        case ABSOLUTE:
+            printf("$%x\n", operand->addr);
+            break;
+        case ABSOLUTE_X:
+            printf("$%x, X\n", operand->addr);
+            break;
+        case ABSOLUTE_Y:
+            printf("$%x, Y\n", operand->addr);
+            break;
+        case INDIRECT:
+            printf("($%x)\n", operand->addr);
+            break;
+        case INDIRECT_X:
+            printf("($%x, X)\n", operand->addr);
+            break;
+        case INDIRECT_Y:
+            printf("($%x, Y)\n", operand->addr);
+            break;
+    }
 }
 
 // 6502 INSTRUCTION IMPLEMENTATIONS
