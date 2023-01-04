@@ -50,10 +50,39 @@ static void inc(Cpu* cpu, operand_t* operand);
 static void inx(Cpu* cpu, operand_t* operand);
 static void iny(Cpu* cpu, operand_t* operand);
 static void jmp(Cpu* cpu, operand_t* operand);
+static void jsr(Cpu* cpu, operand_t* operand);
+static void lda(Cpu* cpu, operand_t* operand);
+static void ldx(Cpu* cpu, operand_t* operand);
+static void ldy(Cpu* cpu, operand_t* operand);
+static void lsr(Cpu* cpu, operand_t* operand);
+static inline void nop(Cpu* cpu, operand_t* operand);
+static void ora(Cpu* cpu, operand_t* operand);
+static inline void pha(Cpu* cpu, operand_t* operand);
+static inline void php(Cpu* cpu, operand_t* operand);
+static void pla(Cpu* cpu, operand_t* operand);
+static inline void plp(Cpu* cpu, operand_t* operand);
+static void rol(Cpu* cpu, operand_t* operand);
+static void ror(Cpu* cpu, operand_t* operand);
+static void rti(Cpu* cpu, operand_t* operand);
+static void rts(Cpu* cpu, operand_t* operand);
+static void sbc(Cpu* cpu, operand_t* operand);
+static inline void sec(Cpu* cpu, operand_t* operand);
+static inline void sed(Cpu* cpu, operand_t* operand);
+static inline void sei(Cpu* cpu, operand_t* operand);
+static inline void sta(Cpu* cpu, operand_t* operand);
+static inline void stx(Cpu* cpu, operand_t* operand);
+static inline void sty(Cpu* cpu, operand_t* operand);
+static void tax(Cpu* cpu, operand_t* operand);
+static void tay(Cpu* cpu, operand_t* operand);
+static void tsx(Cpu* cpu, operand_t* operand);
+static void txa(Cpu* cpu, operand_t* operand);
+static inline void txs(Cpu* cpu, operand_t* operand);
+static void tya(Cpu* cpu, operand_t* operand);
 
 
 static Instruction MOS_6502_INSTRUCTION_SET[] = {
-    {.mnemonic = "BRK", .addr_mode = IMPLIED, .cycles = 7, .exec = brk}
+    {.mnemonic = "BRK", .addr_mode = IMPLIED, .cycles = 7, .exec = brk},
+    {.mnemonic = "ORA", .addr_mode = INDIRECT_X, .cycles = 6, .exec = ora},
 };
 
 Cpu* build_cpu_from_mem(u8* cpu_mem) {
@@ -326,6 +355,7 @@ static void bpl(Cpu* cpu, operand_t* operand) {
     }
 }
 
+//TODO: Should we move the pc before/after incrementing?
 static void brk(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     u8 msb_pc, lsb_pc;
     write_little_endian_u16(cpu->r_pc, &lsb_pc, &msb_pc);
@@ -458,6 +488,172 @@ static void jmp(Cpu* cpu, operand_t* operand) {
     cpu->r_pc = operand->addr;
 }
 
+static void jsr(Cpu* cpu, operand_t* operand) {
+    u8 msb_pc, lsb_pc;
+    write_little_endian_u16(cpu->r_pc, &lsb_pc, &msb_pc);
+
+    push_stack(cpu, lsb_pc);
+    push_stack(cpu, msb_pc);
+
+    cpu->r_pc = operand->addr;
+}
+
+static void lda(Cpu* cpu, operand_t* operand) {
+    cpu->r_a = operand->val;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
+}
+
+static void ldx(Cpu* cpu, operand_t* operand) {
+    cpu->r_x = operand->val;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_x == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_x & 0x80);
+}
+
+static void ldy(Cpu* cpu, operand_t* operand) {
+    cpu->r_y = operand->val;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_y == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_y & 0x80);
+}
+
+static void lsr(Cpu* cpu, operand_t* operand) {
+    u8 old_val, new_val;
+
+    if (operand->addr_mode == ACCUMULATOR) {
+        old_val = cpu->r_a;
+        cpu->r_a = new_val = cpu->r_a >> 1;
+    } else {
+        old_val = operand->val;
+        new_val = operand->val >> 1;
+        write_u8(cpu, operand->addr, new_val);
+    }
+
+    set_cpu_flag(cpu, CARRY_FLAG, old_val & 0x01);
+    set_cpu_flag(cpu, ZERO_FLAG, new_val == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, new_val & 0x80);
+}
+
+static inline void nop(Cpu __attribute__((__unused__)) *cpu, operand_t __attribute__((__unused__)) *operand) {}
+
+static void ora(Cpu* cpu, operand_t* operand) {
+    const u8 result = cpu->r_a | operand->val;
+
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+
+    cpu->r_a = result;
+}
+
+static inline void pha(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    push_stack(cpu, cpu->r_a);
+}
+
+static inline void php(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    push_stack(cpu, cpu->r_sr);
+}
+
+static void pla(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    pop_stack(cpu, &(cpu->r_a));
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
+}
+
+static inline void plp(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    pop_stack(cpu, &(cpu->r_sr));
+}
+
+static void rol(Cpu* cpu, operand_t* operand) {
+    u8 old_val, new_val;
+
+    if (operand->addr_mode == ACCUMULATOR) {
+        old_val = cpu->r_a;
+        cpu->r_a = new_val = (cpu->r_a << 1) | get_cpu_flag(cpu, CARRY_FLAG);
+    } else {
+        old_val = operand->val;
+        new_val = operand->val << 1 | get_cpu_flag(cpu, CARRY_FLAG);
+        write_u8(cpu, operand->addr, new_val);
+    }
+
+    set_cpu_flag(cpu, CARRY_FLAG, old_val >> 7);
+    set_cpu_flag(cpu, ZERO_FLAG, new_val == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, new_val & 0x80);
+}
+
+static void ror(Cpu* cpu, operand_t* operand) {
+    u8 old_val, new_val;
+
+    if (operand->addr_mode == ACCUMULATOR) {
+        old_val = cpu->r_a;
+        cpu->r_a = new_val = cpu->r_a >> 1 | (get_cpu_flag(cpu, CARRY_FLAG) << 7);
+    } else {
+        old_val = operand->val;
+        new_val = operand->val >> 1 | (get_cpu_flag(cpu, CARRY_FLAG) << 7);
+        write_u8(cpu, operand->addr, new_val);
+    }
+
+    set_cpu_flag(cpu, CARRY_FLAG, old_val & 0x01);
+    set_cpu_flag(cpu, ZERO_FLAG, new_val == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, new_val & 0x80);
+}
+
+static void rti(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    u8 msb_pc, lsb_pc;
+
+    pop_stack(cpu, &msb_pc);
+    pop_stack(cpu, &lsb_pc);
+
+    cpu->r_pc = read_little_endian_u16(lsb_pc, msb_pc);
+}
+
+static void rts(Cpu* cpu, operand_t* operand) {
+    u8 msb_pc, lsb_pc;
+
+    pop_stack(cpu, &msb_pc);
+    pop_stack(cpu, &lsb_pc);
+
+    cpu->r_pc = read_little_endian_u16(lsb_pc, msb_pc);
+}
+
+static void sbc(Cpu* cpu, operand_t* operand) {
+    const u16 subtract = ((u16) cpu->r_a) - operand->val - ((u16) !get_cpu_flag(cpu, CARRY_FLAG)); 
+
+    //FIXME: Not sure the carry flag will be set correctly
+    set_cpu_flag(cpu, CARRY_FLAG, subtract & 0xFF00);
+    set_cpu_flag(cpu, ZERO_FLAG, subtract == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, subtract & 0x0080);
+    set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) subtract)) & 0x0080);
+    
+    cpu->r_a = subtract & 0x00FF;
+}
+
+static inline void sec(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, CARRY_FLAG, true);
+}
+
+static inline void sed(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, DECIMAL_FLAG, true);
+}
+
+static inline void sei(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    set_cpu_flag(cpu, INTERRUPT_DISABLED_FLAG, true);
+}
+
+static inline void sta(Cpu* cpu, operand_t* operand) {
+    write_u8(cpu, operand->addr, cpu->r_a);
+}
+
+static inline void stx(Cpu* cpu, operand_t* operand) {
+    write_u8(cpu, operand->addr, cpu->r_x);
+}
+
+static inline void sty(Cpu* cpu, operand_t* operand) {
+    write_u8(cpu, operand->addr, cpu->r_y);
+}
+
 static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
     if (set) {
         cpu->r_sr |= flag;
@@ -467,10 +663,50 @@ static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
     }
 }
 
+static void tax(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    cpu->r_x = cpu->r_a;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_x == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_x & 0x80);
+}
+
+static void tay(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    cpu->r_y = cpu->r_a;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_y == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_y & 0x80);
+}
+
+static void tsx(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    cpu->r_x = cpu->r_sp;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_x == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_x & 0x80);
+}
+
+static void txa(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    cpu->r_a = cpu->r_x;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
+}
+
+static inline void txs(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    cpu->r_sp = cpu->r_x;
+}
+
+static void tya(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
+    cpu->r_a = cpu->r_y;
+
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
+}
+
 static inline bool get_cpu_flag(Cpu* cpu, StatusFlag flag) {
     return (cpu->r_sr & flag) > 0;
 }
 
+//TODO: Check push pull statuses
 static bool push_stack(Cpu* cpu, u8 val) {
     if (cpu->r_sp == 0x00) {
         fprintf(stderr, "FATAL: Stack overflow occured at address 0x%x Exiting...", cpu->r_pc);
