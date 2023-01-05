@@ -16,11 +16,11 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode);
 
 // CPU flag ops
 static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set);
-static inline bool get_cpu_flag(Cpu* cpu, StatusFlag flag);
+static inline u8 get_cpu_flag(Cpu* cpu, StatusFlag flag);
 
 // Stack ops
-static bool push_stack(Cpu* cpu, u8 val);
-static bool pop_stack(Cpu* cpu, u8* v_addr);
+static void push_stack(Cpu* cpu, u8 val);
+static u8 pop_stack(Cpu* cpu);
 
 //6502 Instructions
 static void adc(Cpu* cpu, operand_t* operand);
@@ -382,8 +382,7 @@ static u8 read_u8(Cpu* cpu, u16 addr) {
     else if (addr >= 0x2000 && addr < 0x4000) {
         //TODO: PPU register IO should be handled as soon as PPU implementation starts
         const u16 masked_addr = addr & 0x2007;
-        //printf("PPU is not implemented yet! CPU PC: %x\n", cpu->r_pc);
-        //exit(-4);
+        printf("PPU is not implemented yet! CPU PC: $%X\n", cpu->r_pc);
         return cpu->mem[masked_addr];
     }
     else return cpu->mem[addr];
@@ -400,8 +399,7 @@ static void write_u8(Cpu* cpu, u16 addr, u8 val) {
         //TODO: PPU register IO should be handled as soon as PPU implementation starts
         const u16 masked_addr = addr & 0x2007;
         cpu->mem[masked_addr] = val;
-        //printf("PPU is not implemented yet! CPU PC: 0x%x\n", cpu->r_pc);
-        //exit(-4);
+        printf("PPU is not implemented yet! CPU PC: $%X\n", cpu->r_pc);
     }
     else cpu->mem[addr] = val;
 }
@@ -442,6 +440,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             break; 
        }
         case RELATIVE: 
+            operand.val = read_u8(cpu, cpu->r_pc + 1);
             // Relative offsetting will be handled inside of branch instructions
             break;
         case ABSOLUTE: {
@@ -534,10 +533,10 @@ static void print_inst(const Cpu* cpu, const operand_t* operand, const Instructi
             printf("$%X, Y\n", operand->addr);
             break;
         case RELATIVE:
-            printf("*%X\n", ((i8) operand->val));
+            printf("$%X\n", cpu->r_pc + ((i8)operand->val) + 2);
             break;
         case ABSOLUTE:
-            printf("$%x\n", operand->addr);
+            printf("$%X\n", operand->addr);
             break;
         case ABSOLUTE_X:
             printf("$%X, X\n", operand->addr);
@@ -562,7 +561,7 @@ static void adc(Cpu* cpu, operand_t* operand) {
     const u16 sum = ((u16) cpu->r_a) + operand->val + ((u16) get_cpu_flag(cpu, CARRY_FLAG)); 
 
     set_cpu_flag(cpu, CARRY_FLAG, sum > 0x00FF);
-    set_cpu_flag(cpu, ZERO_FLAG, sum == 0x0000);
+    set_cpu_flag(cpu, ZERO_FLAG, (sum & 0x00FF) == 0x0000);
     set_cpu_flag(cpu, NEGATIVE_FLAG, sum & 0x0080);
     set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) sum)) & 0x0080);
     
@@ -596,30 +595,38 @@ static void asl(Cpu* cpu, operand_t* operand) {
 }
 
 static void bcc(Cpu* cpu, operand_t* operand) {
-    if (!get_cpu_flag(cpu, CARRY_FLAG)) {
+    if (get_cpu_flag(cpu, CARRY_FLAG) == 0) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
 }
 
 static void bcs(Cpu* cpu, operand_t* operand) {
-    if (get_cpu_flag(cpu, CARRY_FLAG)) {
+    if (get_cpu_flag(cpu, CARRY_FLAG) == 1) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
+
 }
 
 static void beq(Cpu* cpu, operand_t* operand) {
-    if (get_cpu_flag(cpu, ZERO_FLAG)) {
+    if (get_cpu_flag(cpu, ZERO_FLAG) == 1) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
+
 }
 
 static void bit(Cpu* cpu, operand_t* operand) {
@@ -631,30 +638,39 @@ static void bit(Cpu* cpu, operand_t* operand) {
 }
 
 static void bmi(Cpu* cpu, operand_t* operand) {
-    if (get_cpu_flag(cpu, NEGATIVE_FLAG)) {
+    if (get_cpu_flag(cpu, NEGATIVE_FLAG) == 1) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
+
 }
 
 static void bne(Cpu* cpu, operand_t* operand) {
-    if (!get_cpu_flag(cpu, ZERO_FLAG)) {
+    if (get_cpu_flag(cpu, ZERO_FLAG) == 0) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
+
 }
 
 static void bpl(Cpu* cpu, operand_t* operand) {
-    if (!get_cpu_flag(cpu, NEGATIVE_FLAG)) {
+    if (get_cpu_flag(cpu, NEGATIVE_FLAG) == 0) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
+
 }
 
 //TODO: Should we move the pc before/after incrementing?
@@ -671,21 +687,27 @@ static void brk(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
 }
 
 static void bvc(Cpu* cpu, operand_t* operand) {
-    if (!get_cpu_flag(cpu, OVERFLOW_FLAG)) {
+    if (get_cpu_flag(cpu, OVERFLOW_FLAG) == 0) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
+
 }
 
 static void bvs(Cpu* cpu, operand_t* operand) {
-    if (get_cpu_flag(cpu, OVERFLOW_FLAG)) {
+    if (get_cpu_flag(cpu, OVERFLOW_FLAG) == 1) {
         const i8 relative_val = read_u8(cpu, cpu->r_pc + 1);
         const u8 msb = (cpu->r_pc >> 8) & 0x00FF;
-        cpu->r_pc += relative_val;
+        cpu->r_pc += relative_val + 2;
         operand->extra_cycles = msb != ((cpu->r_pc >> 8) & 0xFF) ? 2 : 1;
+    } else {
+        cpu->r_pc += 2;
     }
+
 }
 
 static inline void clc(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
@@ -732,7 +754,7 @@ static void dec(Cpu* cpu, operand_t* operand) {
     const u16 result = ((u16) operand->val) - 1;
     write_u8(cpu, operand->addr, result & 0x00FF);
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
@@ -740,7 +762,7 @@ static void dex(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     const u16 result = ((u16) cpu->r_x) - 1;
     cpu->r_x = result & 0x00FF;
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_x == 0);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
@@ -748,7 +770,7 @@ static void dey(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     const u16 result = ((u16) cpu->r_y) - 1;
     cpu->r_y = result & 0x00FF;
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_y == 0);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
@@ -765,7 +787,7 @@ static void inc(Cpu* cpu, operand_t* operand) {
     const u16 result = ((u16) operand->val) + 1;
     write_u8(cpu, operand->addr, result & 0x00FF);
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
@@ -773,7 +795,7 @@ static void inx(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     const u16 result = ((u16) cpu->r_x) + 1;
     cpu->r_x = result & 0x00FF;
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_x == 0);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
@@ -781,7 +803,7 @@ static void iny(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     const u16 result = ((u16) cpu->r_y) + 1;
     cpu->r_y = result & 0x00FF;
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_y == 0);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
@@ -792,7 +814,7 @@ static void jmp(Cpu* cpu, operand_t* operand) {
 
 static void jsr(Cpu* cpu, operand_t* operand) {
     u8 msb_pc, lsb_pc;
-    write_little_endian_u16(cpu->r_pc, &lsb_pc, &msb_pc);
+    write_little_endian_u16(cpu->r_pc - 1, &lsb_pc, &msb_pc);
 
     push_stack(cpu, lsb_pc);
     push_stack(cpu, msb_pc);
@@ -858,14 +880,14 @@ static inline void php(Cpu* cpu, operand_t __attribute__((__unused__)) *operand)
 }
 
 static void pla(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
-    pop_stack(cpu, &(cpu->r_a));
+    cpu->r_a = pop_stack(cpu);
 
     set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0);
     set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
 }
 
 static inline void plp(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
-    pop_stack(cpu, &(cpu->r_sr));
+    cpu->r_sr = pop_stack(cpu);
 }
 
 static void rol(Cpu* cpu, operand_t* operand) {
@@ -905,8 +927,8 @@ static void ror(Cpu* cpu, operand_t* operand) {
 static void rti(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     u8 msb_pc = 0, lsb_pc = 0;
 
-    pop_stack(cpu, &msb_pc);
-    pop_stack(cpu, &lsb_pc);
+    msb_pc = pop_stack(cpu);
+    lsb_pc = pop_stack(cpu);
 
     cpu->r_pc = read_little_endian_u16(lsb_pc, msb_pc);
 }
@@ -914,10 +936,10 @@ static void rti(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
 static void rts(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     u8 msb_pc = 0, lsb_pc = 0;
 
-    pop_stack(cpu, &msb_pc);
-    pop_stack(cpu, &lsb_pc);
+    msb_pc = pop_stack(cpu);
+    lsb_pc = pop_stack(cpu);
 
-    cpu->r_pc = read_little_endian_u16(lsb_pc, msb_pc);
+    cpu->r_pc = read_little_endian_u16(lsb_pc, msb_pc) + 1;
 }
 
 static void sbc(Cpu* cpu, operand_t* operand) {
@@ -925,7 +947,7 @@ static void sbc(Cpu* cpu, operand_t* operand) {
 
     //FIXME: Not sure the carry flag will be set correctly
     set_cpu_flag(cpu, CARRY_FLAG, subtract & 0xFF00);
-    set_cpu_flag(cpu, ZERO_FLAG, subtract == 0x0000);
+    set_cpu_flag(cpu, ZERO_FLAG, (subtract & 0x00FF) == 0x0000);
     set_cpu_flag(cpu, NEGATIVE_FLAG, subtract & 0x0080);
     set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) subtract)) & 0x0080);
     
@@ -954,15 +976,6 @@ static inline void stx(Cpu* cpu, operand_t* operand) {
 
 static inline void sty(Cpu* cpu, operand_t* operand) {
     write_u8(cpu, operand->addr, cpu->r_y);
-}
-
-static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
-    if (set) {
-        cpu->r_sr |= flag;
-    }
-    else {
-        cpu->r_sr &= ~flag;
-    }
 }
 
 static void tax(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
@@ -1004,30 +1017,39 @@ static void tya(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
     set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
 }
 
-static inline bool get_cpu_flag(Cpu* cpu, StatusFlag flag) {
-    return (cpu->r_sr & flag) > 0;
+static void set_cpu_flag(Cpu* cpu, StatusFlag flag, bool set) {
+    if (set) {
+        cpu->r_sr |= flag;
+    }
+    else {
+        cpu->r_sr &= ~flag;
+    }
+}
+
+static inline u8 get_cpu_flag(Cpu* cpu, StatusFlag flag) {
+    return ((cpu->r_sr & flag) > 0) ? 1 : 0;
 }
 
 //TODO: Check push pull statuses
-static bool push_stack(Cpu* cpu, u8 val) {
-    if (cpu->r_sp == 0x00) {
-        fprintf(stderr, "FATAL: Stack overflow occured at address 0x%X Exiting...\n", cpu->r_pc);
-        return false; 
+static void push_stack(Cpu* cpu, u8 val) {
+    i16 next_sp = ((i16) cpu->r_sp) - 1;
+    if (next_sp < 0) {
+        fprintf(stderr, "FATAL: Stack overflow occured at address $%X Exiting...\n", cpu->r_pc);
+        cpu->cpu_state = CPU_STOPPED;
     }
     
     const u16 stack_addr = STACK_ADDR_OFFSET | cpu->r_sp;
     cpu->mem[stack_addr] = val;
     cpu->r_sp--;
-    return true;
 }
 
-static bool pop_stack(Cpu* cpu, u8* v_addr) {
-    if (cpu->r_sp == STACK_SIZE) {
-        fprintf(stderr, "FATAL: Stack underflow occured at address 0x%X Exiting...\n", cpu->r_pc);
-        return false; 
+static u8 pop_stack(Cpu* cpu) {
+    u16 next_sp = ((u16)cpu->r_sp) + 1;
+    if (next_sp > STACK_SIZE) {
+        fprintf(stderr, "FATAL: Stack underflow occured at address $%X Exiting...\n", cpu->r_pc);
+        cpu->cpu_state = CPU_STOPPED;
     }
-    const u16 stack_addr = STACK_ADDR_OFFSET | cpu->r_sp;
-    *v_addr = cpu->mem[stack_addr];
     cpu->r_sp++;
-    return true;
+    const u16 stack_addr = STACK_ADDR_OFFSET | cpu->r_sp;
+    return cpu->mem[stack_addr];
 }

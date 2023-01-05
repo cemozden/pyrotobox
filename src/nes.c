@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <string.h>
+#ifndef WIN32
+#include <unistd.h>
+#else
+#include <windows.h>
+#endif
 
 #include "cpu.h"
 #include "nes.h"
@@ -102,12 +107,16 @@ void run_nes(Nes* nes) {
 
        if (cycles == 0) {
             printf("Error occured while CPU is processing instructions at address $%x\n", cpu->r_pc);
+      printf("r_a: %X, r_x: %X, r_y: %X, r_sp: %X, r_sr: %X\n", cpu->r_a, cpu->r_x, cpu->r_y, cpu->r_sp, cpu->r_sr);
             break;
        }
 
        cpu->cycles += cycles;
        cpu->instructions_performed++;
+
+       //sleep(1);
     }
+    printf("r_a: %X, r_x: %X, r_y: %X, r_sp: %X, r_sr: %X\n", cpu->r_a, cpu->r_x, cpu->r_y, cpu->r_sp, cpu->r_sr);
 }
 
 void free_nes(Nes* nes) {

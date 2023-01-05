@@ -30,6 +30,9 @@ static MemMap get_nrom_mem_map(const NesHeader* nes_header, const u8* rom_bin) {
     MemMap mem_map = (MemMap) {.cpu_mem_map = NULL, .ppu_mem_map = NULL};
     u8* cpu_mem_map = calloc(CPU_MEM_MAP_SIZE, sizeof(u8));
 
+    int i;
+    for (i = 0 ; i < CPU_MEM_MAP_SIZE; i++) cpu_mem_map[i] = 0xFF;
+
     //TODO: Support battery-packed PRG RAMs?
 
     //There will always be at most 2 banks for PRG in NROM typed cartridges
