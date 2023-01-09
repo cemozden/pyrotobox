@@ -10,7 +10,7 @@ inline static u16 irq_interrupt_vector(u8* cpu_mem);
 static u8 read_u8(Cpu* cpu, u16 addr);
 
 static void write_u8(Cpu* cpu, u16 addr, u8 val);
-static void print_inst(const Cpu* cpu, const operand_t* operand, const Instruction* inst);
+static void disassemble(const Cpu* cpu, const operand_t* operand, const Instruction* inst);
 
 static operand_t get_operand(Cpu* cpu, AddrMode addr_mode);
 
@@ -357,7 +357,7 @@ size_t exec_instruction(Cpu* cpu) {
     const u8 opcode = read_u8(cpu, cpu->r_pc);
     const Instruction inst = MOS_6502_INSTRUCTION_SET[opcode];
     operand_t operand = get_operand(cpu, inst.addr_mode); 
-    print_inst(cpu, &operand, &inst);
+    disassemble(cpu, &operand, &inst);
     cpu->r_pc += operand.bytes;
 
     inst.exec(cpu, &operand);
@@ -469,6 +469,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
             const u16 addr = read_little_endian_u16(lsb, msb) + cpu->r_y;
             operand.addr = addr & 0xFFFF;
             operand.val = read_u8(cpu, addr);
+
             //If the page changes then we should increase the instruction cycle by 1
             operand.extra_cycles = msb != ((addr >> 8) & 0xFF) ? 1 : 0;
             operand.bytes = 3;
@@ -510,7 +511,7 @@ static operand_t get_operand(Cpu* cpu, AddrMode addr_mode) {
     return operand;
 }
 
-static void print_inst(const Cpu* cpu, const operand_t* operand, const Instruction* inst) {
+static void disassemble(const Cpu* cpu, const operand_t* operand, const Instruction* inst) {
     printf("$%X:\t%s  ", cpu->r_pc, inst->mnemonic);
 
     switch (operand->addr_mode) {
@@ -527,10 +528,10 @@ static void print_inst(const Cpu* cpu, const operand_t* operand, const Instructi
             printf("$%X\n", operand->addr);
             break;
         case ZERO_PAGE_X:
-            printf("$%X, X\n", operand->addr);
+            printf("$%X, X\n", operand->addr - cpu->r_x);
             break;
         case ZERO_PAGE_Y:
-            printf("$%X, Y\n", operand->addr);
+            printf("$%X, Y\n", operand->addr - cpu->r_y);
             break;
         case RELATIVE:
             printf("$%X\n", cpu->r_pc + ((i8)operand->val) + 2);
@@ -539,10 +540,10 @@ static void print_inst(const Cpu* cpu, const operand_t* operand, const Instructi
             printf("$%X\n", operand->addr);
             break;
         case ABSOLUTE_X:
-            printf("$%X, X\n", operand->addr);
+            printf("$%X, X\n", operand->addr - cpu->r_x);
             break;
         case ABSOLUTE_Y:
-            printf("$%X, Y\n", operand->addr);
+            printf("$%X, Y\n", operand->addr - cpu->r_y);
             break;
         case INDIRECT:
             printf("($%X)\n", operand->addr);
@@ -563,7 +564,7 @@ static void adc(Cpu* cpu, operand_t* operand) {
     set_cpu_flag(cpu, CARRY_FLAG, sum > 0x00FF);
     set_cpu_flag(cpu, ZERO_FLAG, (sum & 0x00FF) == 0x0000);
     set_cpu_flag(cpu, NEGATIVE_FLAG, sum & 0x0080);
-    set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) sum)) & 0x0080);
+    set_cpu_flag(cpu, OVERFLOW_FLAG, (((u16)cpu->r_a) ^ sum) & (((u16)operand->val) ^ sum) & 0x80);
     
     cpu->r_a = sum & 0x00FF;
 }
@@ -949,7 +950,7 @@ static void sbc(Cpu* cpu, operand_t* operand) {
     set_cpu_flag(cpu, CARRY_FLAG, subtract & 0xFF00);
     set_cpu_flag(cpu, ZERO_FLAG, (subtract & 0x00FF) == 0x0000);
     set_cpu_flag(cpu, NEGATIVE_FLAG, subtract & 0x0080);
-    set_cpu_flag(cpu, OVERFLOW_FLAG, (~((uint16_t) cpu->r_a ^ (uint16_t) operand->val) & ((uint16_t) cpu->r_a ^ (uint16_t) subtract)) & 0x0080);
+    set_cpu_flag(cpu, OVERFLOW_FLAG, (((u16) cpu->r_a) ^ subtract) & (~((u16)operand->val) ^ subtract) & 0x80);
     
     cpu->r_a = subtract & 0x00FF;
 }
@@ -1030,9 +1031,8 @@ static inline u8 get_cpu_flag(Cpu* cpu, StatusFlag flag) {
     return ((cpu->r_sr & flag) > 0) ? 1 : 0;
 }
 
-//TODO: Check push pull statuses
 static void push_stack(Cpu* cpu, u8 val) {
-    i16 next_sp = ((i16) cpu->r_sp) - 1;
+    const i16 next_sp = ((i16) cpu->r_sp) - 1;
     if (next_sp < 0) {
         fprintf(stderr, "FATAL: Stack overflow occured at address $%X Exiting...\n", cpu->r_pc);
         cpu->cpu_state = CPU_STOPPED;

@@ -1,6 +1,6 @@
 #ifndef CPU_H
 #define CPU_H
-#define STACK_SIZE 0xFD
+#define STACK_SIZE 0xFF
 #define STACK_ADDR_OFFSET 0x0100
 
 #include "types.h"
