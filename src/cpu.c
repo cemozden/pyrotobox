@@ -561,21 +561,20 @@ static void disassemble(const Cpu* cpu, const operand_t* operand, const Instruct
 static void adc(Cpu* cpu, operand_t* operand) {
     const u16 sum = ((u16) cpu->r_a) + operand->val + ((u16) get_cpu_flag(cpu, CARRY_FLAG)); 
 
-    set_cpu_flag(cpu, CARRY_FLAG, sum > 0x00FF);
-    set_cpu_flag(cpu, ZERO_FLAG, (sum & 0x00FF) == 0x0000);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, sum & 0x0080);
-    set_cpu_flag(cpu, OVERFLOW_FLAG, (((u16)cpu->r_a) ^ sum) & (((u16)operand->val) ^ sum) & 0x80);
+    set_cpu_flag(cpu, CARRY_FLAG, sum & 0x100);
+    set_cpu_flag(cpu, OVERFLOW_FLAG, (cpu->r_a ^ sum) & (operand->val ^ sum) & 0x80);
     
     cpu->r_a = sum & 0x00FF;
+
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0x00);
 }
 
 static void aand(Cpu* cpu, operand_t* operand) {
-    const u8 result = cpu->r_a & operand->val;
+    cpu->r_a &= operand->val;
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
-
-    cpu->r_a = result;
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
 }
 
 static void asl(Cpu* cpu, operand_t* operand) {
@@ -590,7 +589,7 @@ static void asl(Cpu* cpu, operand_t* operand) {
         write_u8(cpu, operand->addr, new_val);
     }
 
-    set_cpu_flag(cpu, CARRY_FLAG, old_val >> 7);
+    set_cpu_flag(cpu, CARRY_FLAG, old_val & 0x80);
     set_cpu_flag(cpu, ZERO_FLAG, new_val == 0x00);
     set_cpu_flag(cpu, NEGATIVE_FLAG, new_val & 0x80);
 }
@@ -728,87 +727,80 @@ static inline void clv(Cpu* cpu, operand_t __attribute__((__unused__)) *operand)
 }
 
 static void cmp(Cpu* cpu, operand_t* operand) {
-    const u16 result = (u16) cpu->r_a - (u16) operand->val;
+    const u16 result = cpu->r_a - operand->val;
 
-    set_cpu_flag(cpu, CARRY_FLAG, cpu->r_a >= operand->val);
-    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0x0000);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x0080);
+    set_cpu_flag(cpu, CARRY_FLAG, !(result & 0x100));
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, (result & 0x00FF) & 0x0080);
 }
 
 static void cpx(Cpu* cpu, operand_t* operand) {
-    const u16 result = (u16) cpu->r_x - (u16) operand->val;
+    const u16 result = cpu->r_x - operand->val;
 
-    set_cpu_flag(cpu, CARRY_FLAG, cpu->r_x >= operand->val);
-    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0x0000);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x0080);
+    set_cpu_flag(cpu, CARRY_FLAG, !(result & 0x100));
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, (result & 0x00FF) & 0x0080);
 }
 
 static void cpy(Cpu* cpu, operand_t* operand) {
-    const u16 result = (u16) cpu->r_y - (u16) operand->val;
+    const u16 result = cpu->r_y - operand->val;
 
-    set_cpu_flag(cpu, CARRY_FLAG, cpu->r_y >= operand->val);
-    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0x0000);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x0080);
+    set_cpu_flag(cpu, CARRY_FLAG, !(result & 0x100));
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x0000);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, (result & 0x00FF) & 0x0080);
 }
 
 static void dec(Cpu* cpu, operand_t* operand) {
-    const u16 result = ((u16) operand->val) - 1;
-    write_u8(cpu, operand->addr, result & 0x00FF);
+    const u8 result = operand->val - 1;
+    write_u8(cpu, operand->addr, result);
 
-    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
 static void dex(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
-    const u16 result = ((u16) cpu->r_x) - 1;
-    cpu->r_x = result & 0x00FF;
+    cpu->r_x--;
 
     set_cpu_flag(cpu, ZERO_FLAG, cpu->r_x == 0);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_x & 0x80);
 }
 
 static void dey(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
-    const u16 result = ((u16) cpu->r_y) - 1;
-    cpu->r_y = result & 0x00FF;
+    cpu->r_y--;
 
     set_cpu_flag(cpu, ZERO_FLAG, cpu->r_y == 0);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_y & 0x80);
 }
 
 static void eor(Cpu* cpu, operand_t* operand) {
-    const u8 result = cpu->r_a ^ operand->val;
+    cpu->r_a ^= operand->val;
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
-
-    cpu->r_a = result;
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
 }
 
 static void inc(Cpu* cpu, operand_t* operand) {
-    const u16 result = ((u16) operand->val) + 1;
-    write_u8(cpu, operand->addr, result & 0x00FF);
+    const u8 result = operand->val + 1;
+    write_u8(cpu, operand->addr, result);
 
-    set_cpu_flag(cpu, ZERO_FLAG, (result & 0x00FF) == 0);
+    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
     set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
 }
 
 static void inx(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
-    const u16 result = ((u16) cpu->r_x) + 1;
-    cpu->r_x = result & 0x00FF;
+    cpu->r_x++;
 
     set_cpu_flag(cpu, ZERO_FLAG, cpu->r_x == 0);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_x & 0x80);
 }
 
 static void iny(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
-    const u16 result = ((u16) cpu->r_y) + 1;
-    cpu->r_y = result & 0x00FF;
+    cpu->r_y++;
 
     set_cpu_flag(cpu, ZERO_FLAG, cpu->r_y == 0);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_y & 0x80);
 }
 
-//FIXME: Watch out for the jump addresses
 static void jmp(Cpu* cpu, operand_t* operand) {
     cpu->r_pc = operand->addr;
 }
