@@ -856,12 +856,10 @@ static void lsr(Cpu* cpu, operand_t* operand) {
 static inline void nop(Cpu __attribute__((__unused__)) *cpu, operand_t __attribute__((__unused__)) *operand) {}
 
 static void ora(Cpu* cpu, operand_t* operand) {
-    const u8 result = cpu->r_a | operand->val;
+    cpu->r_a |= operand->val;
 
-    set_cpu_flag(cpu, ZERO_FLAG, result == 0x00);
-    set_cpu_flag(cpu, NEGATIVE_FLAG, result & 0x80);
-
-    cpu->r_a = result;
+    set_cpu_flag(cpu, ZERO_FLAG, cpu->r_a == 0x00);
+    set_cpu_flag(cpu, NEGATIVE_FLAG, cpu->r_a & 0x80);
 }
 
 static inline void pha(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
@@ -895,7 +893,7 @@ static void rol(Cpu* cpu, operand_t* operand) {
         write_u8(cpu, operand->addr, new_val);
     }
 
-    set_cpu_flag(cpu, CARRY_FLAG, old_val >> 7);
+    set_cpu_flag(cpu, CARRY_FLAG, old_val & 0x80);
     set_cpu_flag(cpu, ZERO_FLAG, new_val == 0x00);
     set_cpu_flag(cpu, NEGATIVE_FLAG, new_val & 0x80);
 }
@@ -938,11 +936,10 @@ static void rts(Cpu* cpu, operand_t __attribute__((__unused__)) *operand) {
 static void sbc(Cpu* cpu, operand_t* operand) {
     const u16 subtract = ((u16) cpu->r_a) - operand->val - ((u16) !get_cpu_flag(cpu, CARRY_FLAG)); 
 
-    //FIXME: Not sure the carry flag will be set correctly
-    set_cpu_flag(cpu, CARRY_FLAG, subtract & 0xFF00);
+    set_cpu_flag(cpu, CARRY_FLAG, !(subtract & 0x100));
     set_cpu_flag(cpu, ZERO_FLAG, (subtract & 0x00FF) == 0x0000);
     set_cpu_flag(cpu, NEGATIVE_FLAG, subtract & 0x0080);
-    set_cpu_flag(cpu, OVERFLOW_FLAG, (((u16) cpu->r_a) ^ subtract) & (~((u16)operand->val) ^ subtract) & 0x80);
+    set_cpu_flag(cpu, OVERFLOW_FLAG, (cpu->r_a ^ subtract) & (~operand->val ^ subtract) & 0x80);
     
     cpu->r_a = subtract & 0x00FF;
 }
