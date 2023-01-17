@@ -7,6 +7,9 @@ project(
         LANGUAGES C
     )
 
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIRS})
+
 add_executable(pyrotobox src/main.c src/types.h src/io_utils.h src/io_utils.c src/nes.h src/nes.c src/utils.h src/utils.c src/mapper.h src/mapper.c src/cpu.h src/cpu.c)
 
 target_compile_features(pyrotobox PRIVATE c_std_99)
@@ -16,3 +19,5 @@ if(MSVC)
 else()
   target_compile_options(pyrotobox PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
+
+target_link_libraries(pyrotobox ${SDL2_LIBRARIES})
